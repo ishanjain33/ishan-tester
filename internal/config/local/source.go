@@ -49,7 +49,23 @@ func Write(path string, cfg config.Config) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("create config directory for %q: %w", path, err)
 	}
-	if err := os.WriteFile(path, data, 0o600); err != nil {
+	// Write to a temp file in the same directory, then rename over path,
+	// so a reader (the wizard's watch for an externally written config,
+	// or a service start racing gen-config) never sees a partial file.
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".config-*.yaml")
+	if err != nil {
+		return fmt.Errorf("write config %q: %w", path, err)
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath) // no-op once the rename below succeeds
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return fmt.Errorf("write config %q: %w", path, err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("write config %q: %w", path, err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
 		return fmt.Errorf("write config %q: %w", path, err)
 	}
 	return nil
