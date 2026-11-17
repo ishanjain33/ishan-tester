@@ -12,7 +12,8 @@ import (
 	"fleet-connector/internal/config/local"
 )
 
-// runInstallConfig validates a config.yaml generated ahead of time (by
+// runInstallConfig is an internal entry point for the installers, not a
+// user-facing command. It validates a config.yaml generated ahead of time (by
 // gen-config, usually on a build machine) and writes it to the service's
 // config path. The MSI and the Linux install scripts run it when the
 // installer is given FLEETCONNECT_INSTALL_CONFIG, so whoever runs the

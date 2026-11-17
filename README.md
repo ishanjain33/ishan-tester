@@ -96,7 +96,6 @@ Three ways to produce or change `config.yaml`, at any point:
 |---|---|
 | **Setup wizard** (browser UI) | First-time, on-site, non-technical installer — no config exists yet |
 | **`fleetconnect gen-config [flags]`** | Ops pre-generates config centrally before deployment — see [below](#gen-config-in-detail) |
-| **`fleetconnect install-config [--path PATH] <file>`** | Validate a pre-generated config and install it at the service's config path — what the installers run for `FLEETCONNECT_INSTALL_CONFIG` |
 | **`fleetconnect edit-config [path]`** | Change a field on an already-deployed install — opens the service's config (or `path`, if given) in `$EDITOR`/`$VISUAL` (falls back to `notepad.exe` on Windows, `nano`/`vi` on Linux), validates before saving |
 
 **Important:** after any config change, the running service needs a real
