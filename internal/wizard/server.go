@@ -16,6 +16,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -30,12 +31,17 @@ var templatesFS embed.FS
 
 var templates = template.Must(template.ParseFS(templatesFS, "templates/*.html"))
 
+// configPollInterval is how often Serve checks whether config.yaml was
+// written by something other than the wizard itself, such as gen-config.
+var configPollInterval = time.Second
+
 const maxManualEndpoints = 20 // a generous ceiling on the manual-entry accumulator, not a real limit on Config.Endpoints itself
 
 // Serve starts the wizard on an ephemeral loopback port, opens the default
 // browser to it (best-effort — see the headless-Linux note in §6), and
 // blocks until either the installer confirms a config (written to
-// configPath) or ctx is canceled. creds/factory are used to validate the
+// configPath), a config appears at configPath from elsewhere (gen-config
+// run while the wizard was waiting), or ctx is canceled. creds/factory are used to validate the
 // submitted config with a real connection attempt before writing it (see
 // handleConfirm) — pass tunnel.DefaultFactory and credentials.StaticProvider{}
 // for the real thing; tests substitute fakes.
@@ -81,11 +87,24 @@ func Serve(ctx context.Context, configPath string, creds credentials.Provider, f
 			"remote_access_hint", fmt.Sprintf("ssh -L %d:127.0.0.1:%d <user>@<this-host>, then open http://localhost:%d/?t=... in your own browser", port, port, port))
 	}
 
+	ticker := time.NewTicker(configPollInterval)
+	defer ticker.Stop()
+
 	var result error
-	select {
-	case result = <-w.done:
-	case <-ctx.Done():
-		result = ctx.Err()
+wait:
+	for {
+		select {
+		case result = <-w.done:
+			break wait
+		case <-ctx.Done():
+			result = ctx.Err()
+			break wait
+		case <-ticker.C:
+			if _, err := os.Stat(configPath); err == nil {
+				log.Info("config written outside the wizard; closing it", "path", configPath)
+				break wait
+			}
+		}
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

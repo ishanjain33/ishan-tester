@@ -699,6 +699,36 @@ func TestServeConfirmSurfacesConnectionFailure(t *testing.T) {
 	<-serveErr
 }
 
+func TestServeReturnsWhenConfigWrittenExternally(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	var logBuf strings.Builder
+	log := slog.New(slog.NewTextHandler(&logBuf, nil))
+
+	prev := configPollInterval
+	configPollInterval = 10 * time.Millisecond
+	defer func() { configPollInterval = prev }()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- Serve(ctx, configPath, credentials.StaticProvider{}, fakeFactory, log) }()
+
+	waitForURL(t, &logBuf)
+	if err := os.WriteFile(configPath, []byte("schema_version: 1\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	select {
+	case err := <-serveErr:
+		if err != nil {
+			t.Fatalf("Serve returned %v, want nil", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("Serve did not return after config.yaml was written externally")
+	}
+}
+
 func TestServeRejectsBadToken(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.yaml")
