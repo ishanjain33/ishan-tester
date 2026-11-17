@@ -96,6 +96,7 @@ Three ways to produce or change `config.yaml`, at any point:
 |---|---|
 | **Setup wizard** (browser UI) | First-time, on-site, non-technical installer — no config exists yet |
 | **`fleetconnect gen-config [flags]`** | Ops pre-generates config centrally before deployment — see [below](#gen-config-in-detail) |
+| **`fleetconnect install-config [--path PATH] <file>`** | Validate a pre-generated config and install it at the service's config path — what the installers run for `FLEETCONNECT_INSTALL_CONFIG` |
 | **`fleetconnect edit-config [path]`** | Change a field on an already-deployed install — opens the service's config (or `path`, if given) in `$EDITOR`/`$VISUAL` (falls back to `notepad.exe` on Windows, `nano`/`vi` on Linux), validates before saving |
 
 **Important:** after any config change, the running service needs a real
@@ -313,10 +314,15 @@ msiexec --% /i FleetConnector.msi /quiet FLEETCONNECT_INSTALL_DESCRIPTION="store
 the authtoken — never pass the token itself as a property, it would land in
 plaintext in the install log.)
 
-Or simplest for a scripted rollout: run `gen-config` yourself first and
-drop the resulting file at `%ProgramData%\FleetConnector\config.yaml` before
-installing — the service will find it already there and connect
-immediately with zero interaction.
+Or simplest for a scripted rollout: run `gen-config` yourself first (on any
+machine) and hand the installer the resulting file. The installer validates
+it, installs it at `%ProgramData%\FleetConnector\config.yaml`, and starts
+the service, which connects immediately with zero interaction. An invalid
+file fails the install. Use a full path:
+
+```powershell
+msiexec /i FleetConnector.msi /quiet FLEETCONNECT_INSTALL_CONFIG="C:\path\to\store-042.yaml"
+```
 
 ### 4. Verify
 
@@ -367,13 +373,13 @@ If the box is headless (no browser), the log includes an SSH port-forward
 hint: `ssh -L <port>:127.0.0.1:<port> user@host`, then open the URL from
 your own machine's browser.
 
-To skip the wizard, either pre-stage a config before installing:
+To skip the wizard, either hand the installer a config generated ahead of
+time (it's validated, installed at `/etc/fleetconnect/config.yaml`, and an
+invalid file fails the install):
 
 ```sh
-./fleetconnect gen-config --description "store-042" --upstream localhost:8080 --authtoken "<your authtoken>" --path /tmp/config.yaml
-sudo mkdir -p /etc/fleetconnect
-sudo cp /tmp/config.yaml /etc/fleetconnect/config.yaml
-sudo dpkg -i dist/fleetconnect_*.deb
+./fleetconnect gen-config --description "store-042" --upstream localhost:8080 --authtoken "<your authtoken>" --path store-042.yaml
+sudo FLEETCONNECT_INSTALL_CONFIG="$PWD/store-042.yaml" dpkg -i dist/fleetconnect_*.deb
 ```
 
 or supply install-time environment variables so `postinstall.sh` runs

@@ -47,6 +47,14 @@ func main() {
 		return
 	}
 
+	if len(os.Args) > 1 && os.Args[1] == "install-config" {
+		if err := runInstallConfig(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "fleetconnect install-config:", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	if handled, err := runAsWindowsServiceIfApplicable(); handled {
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "fleetconnect:", err)

@@ -62,6 +62,15 @@
          property table entirely. -->
     <Property Id="FLEETCONNECT_CREDFILE" Secure="yes" Hidden="yes" />
 
+    <!-- Full path to a config.yaml generated ahead of time (gen-config on a
+         build machine). ImportConfig below validates it and installs it at
+         the service's config path before the service starts, so the
+         person running the install needs only the MSI and this file:
+           msiexec /i FleetConnector.msi /quiet FLEETCONNECT_INSTALL_CONFIG="C:\path\to\store-042.yaml"
+         Must be a full path: the deferred custom action runs as SYSTEM
+         from %WINDIR%\System32, not from the msiexec caller's directory. -->
+    <Property Id="FLEETCONNECT_INSTALL_CONFIG" Secure="yes" />
+
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="FleetConnector" />
     </StandardDirectory>
@@ -135,6 +144,20 @@
                   Return="check"
                   BinaryRef="Wix4UtilCA_X64" />
 
+    <!-- Return="check": an unreadable or invalid file fails (and rolls
+         back) the install, rather than starting the service with no
+         config and leaving it in the wizard. -->
+    <SetProperty Id="ImportConfig"
+                 Value="&quot;[#FleetConnectExe]&quot; install-config --path &quot;[CommonAppDataFolder]FleetConnector\config.yaml&quot; &quot;[FLEETCONNECT_INSTALL_CONFIG]&quot;"
+                 Before="ImportConfig"
+                 Sequence="execute" />
+    <CustomAction Id="ImportConfig"
+                  DllEntry="WixQuietExec"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="check"
+                  BinaryRef="Wix4UtilCA_X64" />
+
     <SetProperty Id="StartFleetConnectService"
                  Value="&quot;sc.exe&quot; start FleetConnector"
                  Before="StartFleetConnectService"
@@ -159,7 +182,8 @@
            reboot. After="EnsureConfig" keeps the ordering correct
            regardless of which of the three paths actually generated
            config.yaml. -->
-      <Custom Action="StartFleetConnectService" After="EnsureConfig" Condition="NOT Installed" />
+      <Custom Action="ImportConfig" After="EnsureConfig" Condition="NOT Installed AND FLEETCONNECT_INSTALL_CONFIG" />
+      <Custom Action="StartFleetConnectService" After="ImportConfig" Condition="NOT Installed" />
     </InstallExecuteSequence>
 
   </Package>
