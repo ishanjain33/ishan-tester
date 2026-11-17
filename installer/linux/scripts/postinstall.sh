@@ -7,6 +7,12 @@
 # same config-construction/validation code the wizard uses.
 set -e
 
+if [ -n "$FLEETCONNECT_INSTALL_CONFIG" ]; then
+    # A config.yaml generated ahead of time (gen-config on a build
+    # machine): validate it and install it at the service's config path.
+    /usr/bin/fleetconnect install-config --path /etc/fleetconnect/config.yaml "$FLEETCONNECT_INSTALL_CONFIG"
+fi
+
 if [ ! -f /etc/fleetconnect/config.yaml ] && [ -n "$FLEETCONNECT_INSTALL_DESCRIPTION" ]; then
     args="gen-config --path /etc/fleetconnect/config.yaml --description $FLEETCONNECT_INSTALL_DESCRIPTION --upstream $FLEETCONNECT_INSTALL_UPSTREAM"
     [ -n "$FLEETCONNECT_INSTALL_NAME" ] && args="$args --name $FLEETCONNECT_INSTALL_NAME"

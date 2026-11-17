@@ -8,8 +8,8 @@
 #   sudo ./install.sh
 #
 # Same install-time environment variables as the .deb/.rpm postinstall
-# script (FLEETCONNECT_INSTALL_DESCRIPTION/_UPSTREAM/_NAME/_URL/_METADATA/
-# _LOG_LEVEL, FLEETCONNECT_CREDFILE) produce the same config.yaml via the
+# script (FLEETCONNECT_INSTALL_CONFIG, or FLEETCONNECT_INSTALL_DESCRIPTION/
+# _UPSTREAM/_NAME/_URL/_METADATA/_LOG_LEVEL, FLEETCONNECT_CREDFILE) produce the same config.yaml via the
 # same gen-config code path — this script only differs in how the files
 # land on disk and, if present, how the service is supervised.
 set -e
@@ -18,6 +18,12 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 install -d -m 0755 /etc/fleetconnect /var/log/fleetconnect
 install -m 0755 "$script_dir/fleetconnect" /usr/bin/fleetconnect
+
+if [ -n "$FLEETCONNECT_INSTALL_CONFIG" ]; then
+    # A config.yaml generated ahead of time (gen-config on a build
+    # machine): validate it and install it at the service's config path.
+    /usr/bin/fleetconnect install-config --path /etc/fleetconnect/config.yaml "$FLEETCONNECT_INSTALL_CONFIG"
+fi
 
 if [ ! -f /etc/fleetconnect/config.yaml ] && [ -n "$FLEETCONNECT_INSTALL_DESCRIPTION" ]; then
     args="gen-config --path /etc/fleetconnect/config.yaml --description $FLEETCONNECT_INSTALL_DESCRIPTION --upstream $FLEETCONNECT_INSTALL_UPSTREAM"

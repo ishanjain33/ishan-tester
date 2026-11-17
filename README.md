@@ -313,10 +313,15 @@ msiexec --% /i FleetConnector.msi /quiet FLEETCONNECT_INSTALL_DESCRIPTION="store
 the authtoken — never pass the token itself as a property, it would land in
 plaintext in the install log.)
 
-Or simplest for a scripted rollout: run `gen-config` yourself first and
-drop the resulting file at `%ProgramData%\FleetConnector\config.yaml` before
-installing — the service will find it already there and connect
-immediately with zero interaction.
+Or simplest for a scripted rollout: run `gen-config` yourself first (on any
+machine) and hand the installer the resulting file. The installer validates
+it, installs it at `%ProgramData%\FleetConnector\config.yaml`, and starts
+the service, which connects immediately with zero interaction. An invalid
+file fails the install. Use a full path:
+
+```powershell
+msiexec /i FleetConnector.msi /quiet FLEETCONNECT_INSTALL_CONFIG="C:\path\to\store-042.yaml"
+```
 
 ### 4. Verify
 
@@ -367,13 +372,13 @@ If the box is headless (no browser), the log includes an SSH port-forward
 hint: `ssh -L <port>:127.0.0.1:<port> user@host`, then open the URL from
 your own machine's browser.
 
-To skip the wizard, either pre-stage a config before installing:
+To skip the wizard, either hand the installer a config generated ahead of
+time (it's validated, installed at `/etc/fleetconnect/config.yaml`, and an
+invalid file fails the install):
 
 ```sh
-./fleetconnect gen-config --description "store-042" --upstream localhost:8080 --authtoken "<your authtoken>" --path /tmp/config.yaml
-sudo mkdir -p /etc/fleetconnect
-sudo cp /tmp/config.yaml /etc/fleetconnect/config.yaml
-sudo dpkg -i dist/fleetconnect_*.deb
+./fleetconnect gen-config --description "store-042" --upstream localhost:8080 --authtoken "<your authtoken>" --path store-042.yaml
+sudo FLEETCONNECT_INSTALL_CONFIG="$PWD/store-042.yaml" dpkg -i dist/fleetconnect_*.deb
 ```
 
 or supply install-time environment variables so `postinstall.sh` runs
