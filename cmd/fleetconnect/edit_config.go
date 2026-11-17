@@ -28,14 +28,14 @@ import (
 // the SDK connection using the config already loaded in memory at
 // process startup; it never re-reads config.yaml from disk.
 func runEditConfig(args []string) error {
-	path := "config.yaml"
+	path := defaultConfigPath()
 	if len(args) > 0 {
 		path = args[0]
 	}
 
 	original, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("read config %q: %w", path, err)
+		return withConfigHint(path, fmt.Errorf("read config %q: %w", path, err))
 	}
 
 	tmp, err := os.CreateTemp("", "fleetconnect-edit-*.yaml")
@@ -79,7 +79,7 @@ func runEditConfig(args []string) error {
 		}
 		if parseErr == nil && validateErr == nil {
 			if err := local.Write(path, cfg); err != nil {
-				return fmt.Errorf("write config %q: %w", path, err)
+				return withConfigHint(path, err)
 			}
 			fmt.Println("config updated — restart the service (e.g. `systemctl restart fleetconnect` on Linux, or restart the Windows service) to apply it; a dashboard-initiated restart reuses the config already loaded in memory and will NOT pick this up")
 			return nil

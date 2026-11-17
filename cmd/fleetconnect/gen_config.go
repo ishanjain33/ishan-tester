@@ -23,7 +23,7 @@ func (r *repeatedFlag) Set(v string) error { *r = append(*r, v); return nil }
 
 func runGenConfig(args []string) error {
 	fs := flag.NewFlagSet("gen-config", flag.ContinueOnError)
-	path := fs.String("path", "", "output path (default: config.yaml)")
+	path := fs.String("path", "", "output path (default: config.yaml in the current directory, to ship with the installer)")
 	description := fs.String("description", "", "human-readable description, e.g. install:store-042 (required; also used as the minted credential's description, if minting)")
 	metadata := fs.String("metadata", "", "agent/session-level metadata")
 	logLevel := fs.String("log-level", "", "log_level for the installed config: debug, info (default), warn, or error")
@@ -263,5 +263,8 @@ func writeConfig(opts genConfigOptions) error {
 	if err := config.Validate(cfg); err != nil {
 		return fmt.Errorf("generated config failed validation: %w", err)
 	}
-	return local.Write(path, cfg)
+	if err := local.Write(path, cfg); err != nil {
+		return withConfigHint(path, err)
+	}
+	return nil
 }
