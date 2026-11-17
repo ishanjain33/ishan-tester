@@ -96,7 +96,7 @@ Three ways to produce or change `config.yaml`, at any point:
 |---|---|
 | **Setup wizard** (browser UI) | First-time, on-site, non-technical installer — no config exists yet |
 | **`fleetconnect gen-config [flags]`** | Ops pre-generates config centrally before deployment — see [below](#gen-config-in-detail) |
-| **`fleetconnect edit-config [path]`** | Change a field on an already-deployed install — opens the real file in `$EDITOR`/`$VISUAL` (falls back to `notepad.exe` on Windows, `nano`/`vi` on Linux), validates before saving |
+| **`fleetconnect edit-config [path]`** | Change a field on an already-deployed install — opens the service's config (or `path`, if given) in `$EDITOR`/`$VISUAL` (falls back to `notepad.exe` on Windows, `nano`/`vi` on Linux), validates before saving |
 
 **Important:** after any config change, the running service needs a real
 restart to pick it up — `systemctl restart fleetconnect` on Linux, or
@@ -147,7 +147,7 @@ wizard instead, which exposes the full schema.
 
 | Flag | Purpose |
 |---|---|
-| `--path` | Where to write the file. Defaults to the service's config path (`C:\ProgramData\FleetConnector\config.yaml` on Windows, `/etc/fleetconnect/config.yaml` on Linux), so writing it there needs Administrator or root. Set it to write somewhere else, such as when generating a config to copy to another machine |
+| `--path` | Where to write the file (defaults to `config.yaml` in the current directory — use the platform's fixed path, e.g. `/etc/fleetconnect/config.yaml`, when pre-staging for an install) |
 | `--metadata` | Opaque session metadata (distinct from `--description`) |
 | `--log-level` | `debug`, `info` (default), `warn`, or `error` |
 | `--authtoken` | An existing authtoken: a literal value, `env:VARNAME`, or `file:PATH` (reads a pre-staged credentials file — nothing but the *path* needs to touch a command line or CI variable this way) |
