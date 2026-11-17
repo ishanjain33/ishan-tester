@@ -61,10 +61,15 @@ func (h *windowsServiceHandler) Execute(_ []string, r <-chan svc.ChangeRequest, 
 	defer cancel()
 
 	configPath := defaultConfigPath()
-	if err := ensureConfigCheckpointed(ctx, statusChan, configPath, log); err != nil {
+	stopped, err := ensureConfigStoppable(ctx, cancel, r, statusChan, configPath, log)
+	if err != nil {
 		log.Error("ensure config", "error", err)
 		statusChan <- svc.Status{State: svc.Stopped}
 		return false, 1
+	}
+	if stopped {
+		statusChan <- svc.Status{State: svc.Stopped}
+		return false, 0
 	}
 
 	src := local.New(configPath)
@@ -119,26 +124,39 @@ func (h *windowsServiceHandler) Execute(_ []string, r <-chan svc.ChangeRequest, 
 	}
 }
 
-// ensureConfigCheckpointed runs the wizard (via ensureConfig, main.go) if
-// config.yaml doesn't exist yet, reporting StartPending with an
-// incrementing checkpoint the whole time. Without this, a wizard-driven
-// first start — which can take as long as the installer takes to fill out
-// a form, nothing like the SCM's ordinary few-second start budget — would
-// hit the SCM's start timeout and be treated as a failed launch.
-func ensureConfigCheckpointed(ctx context.Context, statusChan chan<- svc.Status, configPath string, log *slog.Logger) error {
+// ensureConfigStoppable runs the wizard (via ensureConfig, main.go) if
+// config.yaml doesn't exist yet, returning stopped=true if the SCM asked
+// the service to stop or shut down before the wizard finished. The SCM
+// refuses to send controls to a service in StartPending, so while the
+// wizard waits — which can take as long as the installer takes to fill
+// out a form — the service reports Running and accepts Stop/Shutdown.
+// Reporting StartPending instead left `sc stop`, Stop-Service, and MSI
+// uninstall unable to stop an unconfigured service.
+func ensureConfigStoppable(ctx context.Context, cancel context.CancelFunc, r <-chan svc.ChangeRequest, statusChan chan<- svc.Status, configPath string, log *slog.Logger) (stopped bool, err error) {
+	if _, err := os.Stat(configPath); err == nil {
+		return false, nil
+	}
+
+	statusChan <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown}
+
 	done := make(chan error, 1)
 	go func() { done <- ensureConfig(ctx, configPath, log) }()
 
-	checkpoint := uint32(1)
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
 	for {
 		select {
 		case err := <-done:
-			return err
-		case <-ticker.C:
-			checkpoint++
-			statusChan <- svc.Status{State: svc.StartPending, CheckPoint: checkpoint, WaitHint: 3000}
+			return false, err
+		case cr := <-r:
+			switch cr.Cmd {
+			case svc.Interrogate:
+				statusChan <- cr.CurrentStatus
+			case svc.Stop, svc.Shutdown:
+				log.Info("stop requested via SCM before setup completed", "cmd", cr.Cmd)
+				statusChan <- svc.Status{State: svc.StopPending}
+				cancel()
+				<-done
+				return true, nil
+			}
 		}
 	}
 }
