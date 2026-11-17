@@ -28,7 +28,7 @@ import (
 // the SDK connection using the config already loaded in memory at
 // process startup; it never re-reads config.yaml from disk.
 func runEditConfig(args []string) error {
-	path := "config.yaml"
+	path := defaultConfigPath()
 	if len(args) > 0 {
 		path = args[0]
 	}

@@ -147,7 +147,7 @@ wizard instead, which exposes the full schema.
 
 | Flag | Purpose |
 |---|---|
-| `--path` | Where to write the file (defaults to `config.yaml` in the current directory — use the platform's fixed path, e.g. `/etc/fleetconnect/config.yaml`, when pre-staging for an install) |
+| `--path` | Where to write the file. Defaults to the service's config path (`C:\ProgramData\FleetConnector\config.yaml` on Windows, `/etc/fleetconnect/config.yaml` on Linux), so writing it there needs Administrator or root. Set it to write somewhere else, such as when generating a config to copy to another machine |
 | `--metadata` | Opaque session metadata (distinct from `--description`) |
 | `--log-level` | `debug`, `info` (default), `warn`, or `error` |
 | `--authtoken` | An existing authtoken: a literal value, `env:VARNAME`, or `file:PATH` (reads a pre-staged credentials file — nothing but the *path* needs to touch a command line or CI variable this way) |
